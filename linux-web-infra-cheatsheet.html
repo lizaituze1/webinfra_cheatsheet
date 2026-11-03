@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linux Web Infrastructure Cheatsheet</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b2330;--mu:#5d6b7e;--bd:#dde2ea;--ac:#0a6cff;--acbg:#e6f0ff;--cb:#0f1722;--ct:#9be39b;--lab:#e8590c;--labbg:#fff0e6;--dg:#c92a2a}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0e131b;--card:#161d28;--tx:#e6ebf2;--mu:#93a1b5;--bd:#26303f;--ac:#5aa2ff;--acbg:#1a2a44;--cb:#080c12;--ct:#9be39b;--lab:#ffa06b;--labbg:#33200f;--dg:#ff8787}}
+:root[data-theme=dark]{--bg:#0e131b;--card:#161d28;--tx:#e6ebf2;--mu:#93a1b5;--bd:#26303f;--ac:#5aa2ff;--acbg:#1a2a44;--cb:#080c12;--ct:#9be39b;--lab:#ffa06b;--labbg:#33200f;--dg:#ff8787}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--tx)}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--bd);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+h1{font-size:17px;margin:0;flex:1 1 220px}
+#q{flex:2 1 260px;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font-size:15px}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;padding:6px 10px}
+button:hover{border-color:var(--ac)}
+.wrap{display:flex;max-width:1200px;margin:0 auto}
+nav{width:210px;flex:none;position:sticky;top:62px;align-self:flex-start;max-height:calc(100vh - 70px);overflow:auto;padding:14px 8px}
+nav button{display:block;width:100%;text-align:left;border:0;background:none;padding:7px 10px;margin:1px 0}
+nav button.on{background:var(--acbg);color:var(--ac);font-weight:600}
+main{flex:1;min-width:0;padding:16px}
+.intro{background:var(--acbg);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.lab{background:var(--labbg);border-left:4px solid var(--lab);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:14px}
+h2{margin:0 0 8px;font-size:22px}h3{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu)}
+.it{background:var(--card);border:1px solid var(--bd);border-radius:10px;margin:6px 0;padding:8px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px}
+.it.l{border-left:4px solid var(--lab)}.it.d{border-left:4px solid var(--dg)}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;background:var(--cb);color:var(--ct);border-radius:6px;padding:7px 10px;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace}
+.ds{grid-column:1/-1;color:var(--mu);font-size:14px}.ds b{color:var(--tx)}
+.tag{font-size:11px;font-weight:700;color:var(--lab);margin-left:6px}.d .tag{color:var(--dg)}
+.cp{align-self:start;font-size:12px}
+.ref{grid-template-columns:70px 1fr}.ref b{font-family:ui-monospace,monospace;color:var(--ac)}
+.step{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:9px 12px;margin:6px 0}
+.step input{margin-top:5px;width:18px;height:18px}.step.done{opacity:.55}
+.step pre{margin-top:5px}
+#prog{height:8px;background:var(--bd);border-radius:5px;overflow:hidden;margin:8px 0}#prog i{display:block;height:100%;background:var(--lab);width:0;transition:width .3s}
+.res{color:var(--mu);font-size:13px;margin:4px 0 10px}
+@media(max-width:760px){nav{position:static;width:100%;display:flex;overflow-x:auto;max-height:none;padding:6px}nav button{width:auto;white-space:nowrap}.wrap{display:block}}
+</style>
+</head>
+<body>
+<header>
+<h1>🐧 Linux Web Infra Cheatsheet</h1>
+<input id="q" type="search" placeholder="Search commands or what you want to do (e.g. 'port', 'restart', 'ssl')…" aria-label="Search">
+<button id="th" title="Toggle theme">🌓</button>
+</header>
+<div class="wrap"><nav id="nav"></nav><main id="main"></main></div>
+
+<script>
+// Item: [command, explanation, flag]  flag: 'l' = used in your lab, 'd' = dangerous. Item ['#','Group title'] = sub-heading. Item ['ref','code','text'] = reference row
+const S=[
+{id:'lab',t:'🧪 Your Lab',i:'Your lab = 3 Docker containers on a private network (lablan): two web servers and one load balancer. Commands below run on your host machine unless noted.',
+ note:'Lab map: web-01 172.20.0.11 (SSH 2211, HTTP 8080) • web-02 172.20.0.12 (SSH 2212, HTTP 8081) • lb-01 172.20.0.10 (SSH 2210, HTTP 8082, HTTPS 4443). Login: ubuntu / pass123. The "port" numbers are what YOU use from your laptop; inside the network containers talk on their normal ports (80, 443) using names like web-01.',
+ x:[['#','Docker (run on your host)'],
+ ['docker compose up -d --build','Build and start all 3 containers in the background','l'],
+ ['docker compose ps','Check that web-01, web-02, lb-01 are running','l'],
+ ['docker compose logs -f lb-01','Follow the logs of one container (Ctrl+C to stop)','l'],
+ ['docker compose restart web-01','Restart one container'],
+ ['docker compose down','Stop and remove the lab when you are done','l'],
+ ['docker exec -it web-01 bash','Open a shell inside a container (alternative to SSH)'],
+ ['#','SSH into the containers'],
+ ['ssh ubuntu@localhost -p 2211','Log in to web-01 (password: pass123)','l'],
+ ['ssh ubuntu@localhost -p 2212','Log in to web-02','l'],
+ ['ssh ubuntu@localhost -p 2210','Log in to lb-01','l'],
+ ['#','Quick tests from your host'],
+ ['curl http://localhost:8080','Fetch web-01 page directly','l'],
+ ['curl http://localhost:8081','Fetch web-02 page directly','l'],
+ ['curl -k https://localhost:4443','Fetch via the load balancer over HTTPS. -k = accept the self-signed certificate','l'],
+ ['curl -k -I https://localhost:4443','Show only headers; look for X-Served-By to see which server answered','l'],
+ ['curl -I http://localhost:8082','Should show a 301 redirect to HTTPS','l'],
+ ['for i in 1 2 3 4; do curl -ks https://localhost:4443; done','Send 4 requests and watch round-robin alternate between servers','l']]},
+
+{id:'nav',t:'📁 Files & Folders',i:'Everything in Linux is a file. Config lives in /etc, logs in /var/log, website files in /var/www.',
+ x:[['#','Moving around'],
+ ['pwd','Print where you are now'],['ls -la','List all files (incl. hidden) with details'],['cd /etc/nginx','Go to a directory'],['cd -','Jump back to the previous directory'],['cd ~','Go to your home directory'],['tree -L 2 /etc/nginx','Show a folder as a tree, 2 levels deep'],
+ ['#','Create, copy, move, delete'],
+ ['mkdir -p /var/www/mysite','Make a directory (and parents if missing)'],['touch file.txt','Create an empty file / update its timestamp'],['cp file file.bak','Copy a file. Handy backup before editing a config!'],['cp -r dir1/ dir2/','Copy a directory'],['mv old new','Rename or move'],['rm file','Delete a file'],['rm -rf dir/','Delete a directory and everything in it. No undo!','d'],['ln -s /etc/nginx/sites-available/x /etc/nginx/sites-enabled/x','Symbolic link (a shortcut). Nginx/Apache use these to enable sites'],
+ ['#','Find things'],
+ ['find / -name "nginx.conf" 2>/dev/null','Find a file by name, hiding permission errors'],['locate haproxy.cfg','Fast search (run sudo updatedb first)'],['which nginx','Where is this command installed?'],['file x','What kind of file is it?'],['df -h','Free disk space per filesystem'],['du -sh /var/log','Size of a folder'],
+ ['#','Where things live (FHS)'],
+ ['ref','/etc','System and service configuration files'],['ref','/var/log','Log files (nginx, haproxy, auth…)'],['ref','/var/www','Website files'],['ref','/usr/sbin','System programs (daemons)'],['ref','/home','User home folders'],['ref','/tmp','Temporary files, cleared at reboot'],['ref','/root','Home of the root user'],['ref','/dev','Devices (e.g. /dev/null = trash can)']]},
+
+{id:'text',t:'📜 Text, Logs & Pipes',i:'Reading logs is 80% of troubleshooting. Pipes (|) send one command\'s output into another.',
+ x:[['#','View files'],
+ ['cat file','Print a whole file'],['less file','Scroll a file (q quit, /word search)'],['head -n 20 file','First 20 lines'],['tail -n 50 file','Last 50 lines'],['tail -f /var/log/nginx/access.log','Watch a log live as it grows (Ctrl+C to stop)','l'],['nano file','Easy terminal editor (Ctrl+O save, Ctrl+X exit)','l'],['vi file','Vi editor: i = insert, Esc then :wq = save+quit, :q! = quit without saving'],
+ ['#','Search & filter'],
+ ['grep "error" file','Lines containing "error"'],['grep -i error file','Case-insensitive'],['grep -v debug file','Lines NOT containing "debug"'],['grep -r "server_name" /etc/nginx','Search inside every file in a folder'],['grep -E "404|502" access.log','Match either pattern'],['cut -d" " -f1 access.log','First space-separated column (client IPs in access logs)'],['wc -l file','Count lines'],['sort | uniq -c | sort -nr','Count duplicates, most common first'],['awk \'{print $1}\' access.log','Print first column'],['sed -i \'s/old/new/g\' file','Find & replace inside a file'],
+ ['#','Pipes & redirects'],
+ ['cat access.log | grep 502 | wc -l','How many 502 errors? Chain commands with |'],['cmd > file','Write output to file (overwrites)'],['cmd >> file','Append output to file'],['cmd 2> /dev/null','Hide error messages'],['cmd > file 2>&1','Send output and errors to file'],['echo "hi" | sudo tee file','Write to a root-owned file (plain > fails with sudo)'],['cmd | tee file','Show on screen AND save to file'],
+ ['#','Useful pattern: top client IPs'],
+ ['cut -d" " -f1 /var/log/nginx/access.log | sort | uniq -c | sort -nr | head','Who is hitting my server the most?']]},
+
+{id:'perm',t:'🔐 Permissions & sudo',i:'Each file has an owner, a group, and permissions for user/group/others: r=4, w=2, x=1. So 755 = rwxr-xr-x, 644 = rw-r--r--, 600 = rw-------.',
+ note:'Real example from your lab: the HAProxy PEM holds a private key, so it is set to 600 and owned by haproxy: chmod 600 …pem and chown haproxy:haproxy …pem.',
+ x:[['ls -l','Show permissions. -rwxr-xr-- = file, owner rwx, group r-x, others r--'],['chmod 755 script.sh','Owner full, everyone else read+execute'],['chmod 600 key.pem','Only the owner can read/write. Required for private keys','l'],['chmod +x script.sh','Make a file executable'],['chmod -R 755 /var/www/site','Apply recursively'],['chown user:group file','Change owner and group'],['sudo chown haproxy:haproxy /etc/ssl/certs/ha_proxy_ssl.pem','The lab example','l'],['chown -R www-data:www-data /var/www','Give the web server user ownership of the site'],['umask 022','Default for new files: 644 files / 755 dirs'],
+ ['#','sudo & users'],
+ ['sudo command','Run one command as root'],['sudo -i','Open a root shell (be careful)'],['whoami','Which user am I?'],['id','My user ID and groups'],['sudo adduser bob','Create a user'],['sudo usermod -aG sudo bob','Add user to the sudo group'],['cat /etc/passwd','List of accounts'],['last','Recent logins']]},
+
+{id:'proc',t:'⚙️ Processes & Services',i:'A running program is a process. Servers like nginx and haproxy run as services (daemons), controlled by systemd with systemctl.',
+ x:[['#','systemctl (control services)'],
+ ['sudo systemctl start nginx','Start a service','l'],['sudo systemctl stop nginx','Stop it'],['sudo systemctl restart nginx','Stop + start (brief downtime)','l'],['sudo systemctl reload nginx','Re-read config WITHOUT dropping connections. Prefer this when possible','l'],['systemctl status nginx','Is it running? Shows last log lines','l'],['sudo systemctl enable nginx','Start automatically at boot'],['sudo systemctl disable nginx','Do not start at boot'],['systemctl is-active nginx','Prints active / inactive'],['systemctl list-units --type=service','All services'],['systemctl list-units --failed','Services that crashed'],
+ ['#','Logs via journald'],
+ ['journalctl -u nginx','Logs for one service'],['journalctl -u haproxy -f','Follow live','l'],['journalctl -xe','Recent errors with explanations'],['journalctl -u nginx --since "10 min ago"','Time-limited'],
+ ['#','Processes'],
+ ['ps aux','All running processes'],['ps aux | grep nginx','Is nginx running?'],['pgrep -a haproxy','Find process IDs by name'],['top','Live view (q to quit)'],['htop','Nicer top (needs install)'],['kill PID','Politely ask a process to stop (SIGTERM)'],['kill -9 PID','Force kill (SIGKILL), last resort','d'],['pkill nginx','Kill by name'],['kill -HUP PID','Make daemon reload config (SIGHUP)'],
+ ['#','Resources'],
+ ['free -h','RAM and swap usage'],['uptime','How long up + load averages'],['df -h','Disk space']]},
+
+{id:'pkg',t:'📦 Installing Software',i:'Your lab uses Ubuntu 24.04, so you use apt (Debian family). Red Hat/CentOS use yum or dnf instead.',
+ x:[['sudo apt update','Refresh package lists. Do this first!','l'],['sudo apt install -y nginx','Install (-y = answer yes automatically)','l'],['sudo apt install -y haproxy','Install HAProxy','l'],['sudo apt remove nginx','Uninstall (keeps config)'],['sudo apt purge nginx','Uninstall and delete config'],['sudo apt upgrade','Update all installed packages'],['apt search keyword','Search packages'],['apt show nginx','Package details'],['dpkg -l | grep nginx','Is it installed?'],['dpkg -L nginx','Files a package installed'],['dpkg -S /usr/sbin/nginx','Which package owns this file?'],
+ ['#','Red Hat family (for reference)'],
+ ['sudo yum install httpd','Install Apache on RHEL/CentOS'],['rpm -qa | grep httpd','Is it installed?']]},
+
+{id:'net',t:'🌐 Networking Tools',i:'Layers to test in order: Is the machine reachable (ping)? Does DNS work (dig)? Is the port open (ss, nc)? Does the app answer (curl)?',
+ x:[['#','Interfaces & addresses'],
+ ['ip a','Show IP addresses (older: ifconfig)'],['ip route','Routing table / default gateway'],['hostname -I','Just my IPs'],['cat /etc/hosts','Local name→IP overrides'],['cat /etc/resolv.conf','Which DNS server am I using?'],
+ ['#','Test connectivity'],
+ ['ping -c 4 172.20.0.11','Send 4 pings. Run inside lb-01 to test web-01','l'],['ping -c 2 web-01','Does the name resolve inside the Docker network?','l'],['traceroute host','Show each hop along the path'],['nc -zv web-01 80','Is port 80 open on web-01? (-z scan, -v verbose)','l'],['curl -v http://web-01','Verbose request; shows connection, headers, response','l'],
+ ['#','Listening ports: what is running where?'],
+ ['sudo ss -tulpn','All listening TCP/UDP ports + the program using them. First thing to check!','l'],['sudo ss -tlpn | grep :80','Who is on port 80?','l'],['sudo lsof -i :80','Alternative: processes using port 80'],['sudo netstat -tulpn','Old version of ss'],
+ ['#','Watch traffic'],
+ ['sudo tcpdump -i any port 80','Capture HTTP packets'],['sudo tcpdump -i any -nn port 443','Capture HTTPS (encrypted; shows only connections)'],['sudo tcpdump -i any -w cap.pcap','Save capture to open in Wireshark'],
+ ['#','Common ports'],
+ ['ref','22','SSH'],['ref','25','SMTP (mail)'],['ref','53','DNS'],['ref','80','HTTP'],['ref','443','HTTPS'],['ref','3306','MySQL'],['ref','5432','PostgreSQL'],['ref','8080','Common alt-HTTP / proxy']]},
+
+{id:'curl',t:'🔍 curl & HTTP Testing',i:'curl is your best friend for testing web servers, proxies and SSL without a browser.',
+ x:[['curl http://localhost','GET a page'],['curl -I http://localhost','HEAD: headers only','l'],['curl -i http://localhost','Headers + body'],['curl -v https://host','Verbose: TLS handshake + request/response'],['curl -k https://localhost:4443','Ignore certificate errors (self-signed)','l'],['curl -L http://host','Follow redirects'],['curl -s url','Silent (no progress bar)'],['curl -o out.html url','Save to file'],['curl -H "Host: example.com" http://172.20.0.10','Send a custom Host header (test virtual hosts)'],['curl -X POST -d "a=1" url','POST request'],['curl -w "%{http_code}\\n" -o /dev/null -s url','Print only the status code'],['curl --resolve example.com:443:127.0.0.1 https://example.com','Fake DNS for a test'],['curl -I http://localhost:8082 | grep -i location','Where does the redirect send me?','l']]},
+
+{id:'fw',t:'🧱 Firewall',i:'A firewall allows or blocks traffic by port, IP and protocol. Ubuntu: ufw (simple). Raw: iptables. Red Hat: firewalld. Careful: don\'t block SSH (22) or you lock yourself out!',
+ x:[['#','ufw (Ubuntu, easiest)'],
+ ['sudo ufw status verbose','Show rules'],['sudo ufw allow 22/tcp','Allow SSH FIRST','d'],['sudo ufw allow 80/tcp','Allow HTTP'],['sudo ufw allow 443/tcp','Allow HTTPS'],['sudo ufw allow from 10.0.0.0/24 to any port 3306','Allow only one subnet to a port'],['sudo ufw deny 8080','Block a port'],['sudo ufw delete allow 80/tcp','Remove a rule'],['sudo ufw enable','Turn on the firewall'],['sudo ufw disable','Turn off'],
+ ['#','iptables (low-level)'],
+ ['sudo iptables -L -n -v --line-numbers','List rules with counters and line numbers'],['sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT','Append: allow incoming HTTP'],['sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT','Allow SSH'],['sudo iptables -A INPUT -s 1.2.3.4 -j DROP','Block one IP'],['sudo iptables -I INPUT 1 -p tcp --dport 443 -j ACCEPT','Insert at top (order matters!)'],['sudo iptables -D INPUT 3','Delete rule number 3'],['sudo iptables -P INPUT DROP','Default: drop everything not allowed','d'],['sudo iptables -F','Flush (delete) all rules','d'],['sudo iptables -t nat -L','Show NAT table'],['sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080','Redirect port 80 → 8080'],
+ ['#','firewalld (Red Hat)'],
+ ['sudo firewall-cmd --state','Is it running?'],['sudo firewall-cmd --list-all','Show active zone and rules'],['sudo firewall-cmd --permanent --add-service=http','Allow HTTP permanently'],['sudo firewall-cmd --permanent --add-port=8080/tcp','Allow a port'],['sudo firewall-cmd --reload','Apply permanent changes'],
+ ['#','Rule order & terms'],
+ ['ref','ACCEPT','Let the packet through'],['ref','DROP','Silently discard (client times out)'],['ref','REJECT','Discard and tell the sender'],['ref','INPUT','Traffic coming into this machine'],['ref','OUTPUT','Traffic leaving this machine'],['ref','FORWARD','Traffic passing through (routers)']]},
+
+{id:'ssh',t:'🔑 SSH',i:'SSH = encrypted remote shell on port 22. Use keys instead of passwords where you can.',
+ x:[['ssh user@host','Log in'],['ssh ubuntu@localhost -p 2211','Log in on a non-standard port (-p)','l'],['ssh -i ~/.ssh/key user@host','Use a specific private key'],['ssh user@host "uptime"','Run one command remotely'],['ssh-keygen -t ed25519','Generate a key pair'],['ssh-copy-id -p 2211 ubuntu@localhost','Install your public key on the server (then no password)','l'],['scp -P 2211 file ubuntu@localhost:/tmp/','Copy a file TO the server (capital -P for port)','l'],['scp -P 2211 ubuntu@localhost:/etc/nginx/nginx.conf .','Copy FROM the server'],['rsync -avz -e "ssh -p 2211" dir/ ubuntu@localhost:/var/www/','Efficient sync'],['ssh -L 9000:web-01:80 ubuntu@localhost -p 2210','Tunnel: localhost:9000 → web-01:80 via lb-01'],['ssh-keygen -R "[localhost]:2211"','Fix "host key changed" after rebuilding the lab','l'],
+ ['#','Server side'],
+ ['sudo nano /etc/ssh/sshd_config','Config: PermitRootLogin no, PasswordAuthentication no, Port …'],['sudo sshd -t','Test config for errors before restarting'],['sudo systemctl restart ssh','Apply changes (service is "ssh" on Ubuntu)'],['~/.ssh/authorized_keys','Public keys allowed to log in'],['sudo tail -f /var/log/auth.log','Watch login attempts']]},
+
+{id:'ssl',t:'🔒 SSL/TLS & OpenSSL',i:'TLS encrypts traffic between client and server. A certificate proves identity; the private key must stay secret. A self-signed cert encrypts, but browsers do not trust it. SSL termination = the load balancer decrypts HTTPS and talks plain HTTP to backends.',
+ x:[['#','Create a self-signed certificate (your lab)'],
+ ['sudo openssl req -x509 -nodes -days 365 -newkey rsa:4096 \\\n  -keyout /etc/ssl/private/ha_proxy_ssl.key \\\n  -out /etc/ssl/certs/ha_proxy_ssl.crt','Makes a key + cert valid 1 year. -x509 self-signed, -nodes no password on key','l'],
+ ['sudo cat /etc/ssl/certs/ha_proxy_ssl.crt /etc/ssl/private/ha_proxy_ssl.key | \\\n  sudo tee /etc/ssl/certs/ha_proxy_ssl.pem > /dev/null','HAProxy wants cert + key combined in one PEM file','l'],
+ ['#','Inspect certificates'],
+ ['openssl x509 -in cert.crt -text -noout','Read all cert details'],['openssl x509 -in cert.crt -noout -dates','Expiry dates'],['openssl x509 -in cert.crt -noout -subject -issuer','Who it\'s for / who signed it'],['openssl s_client -connect localhost:4443','Connect and show the TLS handshake and cert','l'],['openssl s_client -connect host:443 -servername host </dev/null | openssl x509 -noout -dates','Check a live server\'s cert expiry'],['openssl verify -CAfile ca.crt cert.crt','Verify a cert against a CA'],['openssl rsa -in key -check','Check a private key'],
+ ['#','Generate a CSR (to get a signed cert from a CA)'],
+ ['openssl req -new -newkey rsa:2048 -nodes -keyout my.key -out my.csr','Creates private key + signing request'],['openssl genrsa -out my.key 2048','Just a private key'],
+ ['#','Concepts'],
+ ['ref','.key','Private key. Never share. chmod 600'],['ref','.crt/.pem','Public certificate'],['ref','CSR','Request sent to a CA to be signed'],['ref','CA','Certificate Authority that vouches for your cert'],['ref','TLS 1.2+','Minimum you should allow (lab uses ssl-min-ver TLSv1.2)'],['ref','Let\'s Encrypt','Free trusted certs: sudo apt install certbot, sudo certbot --nginx']]},
+
+{id:'nginx',t:'🟢 Nginx (web server)',i:'Nginx serves static files and can act as a reverse proxy. Main config: /etc/nginx/nginx.conf. Sites: /etc/nginx/sites-available/ (enable via symlink into sites-enabled/).',
+ note:'Lab: install on web-01 and web-02, change the page text on each so you can tell them apart. The pages are served from /var/www/html.',
+ x:[['sudo apt update && sudo apt install -y nginx','Install','l'],['sudo bash -c \'echo "<h1>web-01</h1>" > /var/www/html/index.html\'','Make a test page (use web-02 on the other server)','l'],['sudo systemctl restart nginx','Start/restart','l'],['sudo nginx -t','TEST the config for syntax errors. Always before reload!','l'],['sudo nginx -s reload','Reload config without downtime'],['sudo tail -f /var/log/nginx/access.log','Every request'],['sudo tail -f /var/log/nginx/error.log','Errors: start here when something breaks','l'],['/etc/nginx/sites-available/default','Default site config'],['/var/www/html','Default web root'],
+ ['#','Example: simple server block'],
+ ['server {\n  listen 80;\n  server_name example.com;\n  root /var/www/mysite;\n  index index.html;\n  location / {\n    try_files $uri $uri/ =404;\n  }\n}','Serve static files from /var/www/mysite'],
+ ['server {\n  listen 80;\n  location / {\n    proxy_pass http://127.0.0.1:3000;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n  }\n}','Nginx as a reverse proxy to an app on port 3000'],
+ ['upstream backend {\n  server web-01:80;\n  server web-02:80;\n}\nserver { listen 80; location / { proxy_pass http://backend; } }','Nginx can load balance too (round-robin by default)'],
+ ['#','Apache (alternative)'],
+ ['sudo apt install -y apache2','Install on Ubuntu'],['sudo apachectl configtest','Test config'],['sudo a2ensite mysite && sudo a2dissite 000-default','Enable/disable a site'],['sudo a2enmod ssl proxy proxy_http','Enable modules'],['sudo systemctl reload apache2','Reload'],['/etc/apache2/sites-available/','Apache vhost configs'],['/var/log/apache2/error.log','Apache error log']]},
+
+{id:'ha',t:'⚖️ HAProxy (load balancer)',i:'A load balancer spreads requests across several servers so no single one is overloaded, and keeps working if one dies. Config structure: global → defaults → frontend (what clients hit) → backend (the servers).',
+ note:'Lab goal: HAProxy on lb-01 does SSL termination and round-robin between web-01 and web-02. The config file is /etc/haproxy/haproxy.cfg.',
+ x:[['sudo apt update && sudo apt install -y haproxy','Install on lb-01','l'],['sudo nano /etc/haproxy/haproxy.cfg','Edit the config','l'],['sudo haproxy -c -f /etc/haproxy/haproxy.cfg','CHECK config syntax before restarting','l'],['sudo systemctl restart haproxy','Apply changes','l'],['sudo journalctl -u haproxy -f','Watch logs','l'],['sudo tail -f /var/log/haproxy.log','Alternative log file'],
+ ['#','The lab config (frontends + backend)'],
+ ['frontend balancer_http_in\n    bind *:80\n    redirect scheme https code 301 if ! { ssl_fc }','Listen on 80; send non-HTTPS clients to HTTPS (301)','l'],
+ ['frontend balancer_https_in\n    bind *:443 ssl crt /etc/ssl/certs/ha_proxy_ssl.pem\n    option forwardfor\n    default_backend balancer_http_out','Listen on 443 with the cert (SSL termination). forwardfor passes the real client IP','l'],
+ ['backend balancer_http_out\n    balance roundrobin\n    server web-01 web-01:80 check\n    server web-02 web-02:80 check\n    http-response set-header X-Served-By %[srv_name]','Round-robin to both servers. "check" = health checks. Adds X-Served-By header','l'],
+ ['#','Balancing algorithms'],
+ ['ref','roundrobin','Take turns, in order'],['ref','leastconn','Send to server with fewest active connections'],['ref','source','Same client IP → same server (sticky)'],['ref','uri','Hash of the URL → same server (good for caching)'],
+ ['#','Key directives'],
+ ['ref','frontend','Where clients connect (IP/port/SSL)'],['ref','backend','Pool of servers'],['ref','bind','IP:port to listen on'],['ref','check','Health check; remove dead servers automatically'],['ref','mode http','Layer 7 (understands HTTP). mode tcp = layer 4'],['ref','timeout','connect / client / server timeouts in ms'],
+ ['#','Stats & admin'],
+ ['echo "show stat" | sudo socat stdio /run/haproxy/admin.sock','Query the admin socket (needs socat)'],['echo "disable server balancer_http_out/web-01" | sudo socat stdio /run/haproxy/admin.sock','Take a server out of rotation for maintenance']]},
+
+{id:'dns',t:'🧭 DNS',i:'DNS translates names (example.com) to IPs. Common records: A (IPv4), AAAA (IPv6), CNAME (alias), MX (mail), NS (name server), TXT (text/verification).',
+ x:[['dig example.com','Full DNS answer'],['dig +short example.com','Just the IP'],['dig example.com MX','Mail records'],['dig @8.8.8.8 example.com','Ask a specific DNS server'],['dig -x 8.8.8.8','Reverse lookup (IP → name)'],['dig +trace example.com','Follow the resolution from the root servers'],['nslookup example.com','Simpler lookup tool'],['host example.com','Even simpler'],['getent hosts web-01','What the system itself resolves (uses /etc/hosts too)','l'],['cat /etc/hosts','Static name overrides. Add "127.0.0.1 mysite.local" to test locally'],['cat /etc/resolv.conf','Configured DNS servers']]},
+
+{id:'http',t:'📟 HTTP Status Codes',i:'The first digit tells you the story: 2xx success, 3xx redirect, 4xx client problem, 5xx server problem.',
+ x:[['#','2xx Success'],['ref','200','OK'],['ref','201','Created'],['ref','204','No content'],
+ ['#','3xx Redirect'],['ref','301','Moved permanently (lab uses this for HTTP→HTTPS)'],['ref','302','Found / temporary redirect'],['ref','304','Not modified (use cached copy)'],
+ ['#','4xx Client error'],['ref','400','Bad request'],['ref','401','Unauthorized (login needed)'],['ref','403','Forbidden (permissions or denied rule)'],['ref','404','Not found'],['ref','405','Method not allowed'],['ref','408','Request timeout'],['ref','429','Too many requests'],
+ ['#','5xx Server error'],['ref','500','Internal server error (app crashed; check error log)'],['ref','502','Bad gateway: proxy got a bad/no answer from backend. Is the backend running?'],['ref','503','Service unavailable: no healthy backends / overloaded'],['ref','504','Gateway timeout: backend too slow']]},
+
+{id:'trouble',t:'🛠️ Troubleshooting',i:'Work from the outside in. Ask: Is it running? Is it listening? Is the config valid? What do the logs say?',
+ x:[['#','"Site not loading" checklist'],
+ ['systemctl status nginx','1. Is the service running?','l'],['sudo ss -tlpn | grep :80','2. Is something listening on the port?','l'],['sudo nginx -t   # or: haproxy -c -f /etc/haproxy/haproxy.cfg','3. Is the config valid?','l'],['sudo tail -n 30 /var/log/nginx/error.log','4. What do the logs say?','l'],['curl -v http://localhost','5. Does it work from the machine itself?'],['sudo ufw status','6. Is a firewall blocking it?'],['ping -c 2 web-01   # then: nc -zv web-01 80','7. Can the load balancer reach the backend?','l'],
+ ['#','Symptoms → likely cause'],
+ ['ref','502','Backend down or wrong port in proxy/backend config. Test: curl http://web-01 from lb-01'],['ref','503','HAProxy: all health checks failing. Check backend servers & "check" lines'],['ref','403','File permissions or ownership on /var/www; or access rule'],['ref','404','Wrong root path or file name; check root and index.html exists'],['ref','Conn refused','Nothing listening on that port. Start the service / fix bind'],['ref','Timeout','Firewall dropping packets, or wrong IP'],['ref','SSL error','Self-signed cert: use curl -k. Or PEM missing key / wrong perms'],['ref','"Address in use"','Another process already owns the port: ss -tlpn | grep :80'],['ref','Host key changed','Rebuilt container: ssh-keygen -R "[localhost]:2211"'],
+ ['#','Golden habits'],
+ ['cp file file.bak','Back up before editing configs'],['sudo nginx -t && sudo systemctl reload nginx','Test, then reload only if the test passes']]},
+
+{id:'walk',t:'✅ Lab Walkthrough',type:'steps',i:'Tick off each step as you go. Progress is saved in your browser.',
+ x:[['Start the lab','docker compose up -d --build\ndocker compose ps'],['Install Nginx on web-01 (ssh -p 2211)','sudo apt update && sudo apt install -y nginx\nsudo bash -c \'echo "<h1>web-01</h1>" > /var/www/html/index.html\'\nsudo systemctl restart nginx'],['Do the same on web-02 (ssh -p 2212) with <h1>web-02</h1>','sudo apt update && sudo apt install -y nginx\nsudo bash -c \'echo "<h1>web-02</h1>" > /var/www/html/index.html\'\nsudo systemctl restart nginx'],['Verify both from your host','curl http://localhost:8080\ncurl http://localhost:8081'],['SSH into lb-01 (ssh -p 2210) and generate the certificate','sudo openssl req -x509 -nodes -days 365 -newkey rsa:4096 \\\n  -keyout /etc/ssl/private/ha_proxy_ssl.key \\\n  -out /etc/ssl/certs/ha_proxy_ssl.crt'],['Combine cert + key into a PEM','sudo cat /etc/ssl/certs/ha_proxy_ssl.crt /etc/ssl/private/ha_proxy_ssl.key | \\\n  sudo tee /etc/ssl/certs/ha_proxy_ssl.pem > /dev/null'],['Set PEM permissions','sudo chmod 600 /etc/ssl/certs/ha_proxy_ssl.pem\nsudo chown haproxy:haproxy /etc/ssl/certs/ha_proxy_ssl.pem'],['Install HAProxy','sudo apt update && sudo apt install -y haproxy'],['Edit /etc/haproxy/haproxy.cfg (add the 3 sections from the HAProxy tab), then check it','sudo nano /etc/haproxy/haproxy.cfg\nsudo haproxy -c -f /etc/haproxy/haproxy.cfg'],['Restart HAProxy','sudo systemctl restart haproxy\nsystemctl status haproxy'],['Test HTTPS and watch round-robin','curl -k https://localhost:4443\ncurl -k -I https://localhost:4443'],['Test the HTTP→HTTPS redirect (expect 301)','curl -I http://localhost:8082'],['Experiment: stop nginx on web-01 and see the LB keep working','sudo systemctl stop nginx   # on web-01\ncurl -ks https://localhost:4443   # still answers from web-02'],['Clean up','docker compose down']]}
+];
+
+const $=s=>document.querySelector(s),main=$('#main'),nav=$('#nav');let cur='lab';
+let done={};try{done=JSON.parse(localStorage.getItem('walk')||'{}')}catch(e){}
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+
+function item(it,sec){
+ if(it[0]==='#'){return el('h3','',it[1])}
+ if(it[0]==='ref'){const d=el('div','it ref');d.append(el('b','',it[1]),el('span','',it[2]));return d}
+ const d=el('div','it'+(it[2]==='l'?' l':it[2]==='d'?' d':''));
+ const p=el('pre','',it[0]);const b=el('button','cp','Copy');
+ b.onclick=()=>{(navigator.clipboard?navigator.clipboard.writeText(it[0]):Promise.reject()).catch(()=>{const r=document.createRange();r.selectNodeContents(p);const s=getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand('copy')}catch(e){}}).finally(()=>{b.textContent='✓';setTimeout(()=>b.textContent='Copy',1200)})};
+ const ds=el('div','ds');ds.textContent=it[1];
+ if(it[2]==='l'){ds.append(el('span','tag','LAB'))}
+ if(it[2]==='d'){ds.append(el('span','tag','⚠ CAREFUL'))}
+ d.append(p,b,ds);return d}
+
+function render(){
+ main.innerHTML='';const q=$('#q').value.trim().toLowerCase();
+ if(q){
+  let n=0;main.append(el('h2','','Search results'));
+  S.forEach(s=>{if(s.type==='steps')return;const hits=s.x.filter(i=>i[0]!=='#'&&i.join(' ').toLowerCase().includes(q));
+   if(!hits.length)return;main.append(el('h3','',s.t));hits.forEach(h=>{main.append(item(h));n++})});
+  main.insertBefore(el('div','res',n+' result'+(n==1?'':'s')+' for “'+q+'”'),main.children[1]);return}
+ const s=S.find(x=>x.id===cur);main.append(el('h2','',s.t),el('div','intro',s.i));
+ if(s.note)main.append(el('div','lab',s.note));
+ if(s.type==='steps'){
+  const total=s.x.length;const pr=el('div');pr.id='prog';pr.append(el('i'));main.append(pr);
+  const lab=el('div','res');main.append(lab);
+  const upd=()=>{const c=s.x.filter((_,i)=>done[i]).length;pr.firstChild.style.width=(c/total*100)+'%';lab.textContent=c+' of '+total+' steps done'};
+  s.x.forEach((st,i)=>{const w=el('div','step'+(done[i]?' done':''));const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!done[i];
+   cb.onchange=()=>{done[i]=cb.checked;w.classList.toggle('done',cb.checked);try{localStorage.setItem('walk',JSON.stringify(done))}catch(e){}upd()};
+   const bx=el('div');bx.style.flex='1';bx.style.minWidth=0;bx.append(el('b','',(i+1)+'. '+st[0]),el('pre','',st[1]));w.append(cb,bx);main.append(w)});
+  upd();return}
+ s.x.forEach(i=>main.append(item(i)));scrollTo(0,0)}
+
+S.forEach(s=>{const b=el('button','',s.t);b.dataset.id=s.id;b.onclick=()=>{cur=s.id;$('#q').value='';mark();render()};nav.append(b)});
+const mark=()=>nav.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.id===cur&&!$('#q').value));
+$('#q').oninput=()=>{mark();render()};
+$('#th').onclick=()=>{const r=document.documentElement,d=matchMedia('(prefers-color-scheme:dark)').matches;const now=r.dataset.theme||(d?'dark':'light');r.dataset.theme=now==='dark'?'light':'dark'};
+mark();render();
+</script>
+</body>
+</html>
